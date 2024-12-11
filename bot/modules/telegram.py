@@ -2,24 +2,23 @@ from telethon.events import NewMessage
 from telethon.tl.custom import Message
 from datetime import datetime
 from mimetypes import guess_type
+from typing import Union  # For compatibility with Python < 3.10
 from bot import TelegramBot
 from bot.config import Telegram
 from bot.server.error import abort
 
-async def get_message(message_id: int) -> Message | None:
+async def get_message(message_id: int) -> Union[Message, None]:
     message = None
-    
     try:
         message = await TelegramBot.get_messages(Telegram.CHANNEL_ID, ids=message_id)
     except Exception:
         pass
-
     return message
 
-async def send_message(message:Message, send_to:int = Telegram.CHANNEL_ID) -> Message:
+async def send_message(message: Message, send_to: int = Telegram.CHANNEL_ID) -> Message:
     return await TelegramBot.send_message(entity=send_to, message=message)
 
-def filter_files(update: NewMessage.Event | Message):
+def filter_files(update: Union[NewMessage.Event, Message]) -> bool:
     return bool(
         (
             update.document
@@ -43,7 +42,7 @@ def get_file_properties(message: Message):
             'audio': 'mp3',
             'voice': 'ogg',
             'photo': 'jpg',
-            'video_note': 'mp4'
+            'video_note': 'mp4',
         }
 
         for attribute in attributes:
@@ -51,14 +50,13 @@ def get_file_properties(message: Message):
             if media:
                 file_type, file_format = attribute, attributes[attribute]
                 break
-        
-        if not media:
+        else:  # Executed if no media attribute is found
             abort(400, 'Invalid media type.')
 
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         file_name = f'{file_type}-{date}.{file_format}'
-    
+
     if not mime_type:
         mime_type = guess_type(file_name)[0] or 'application/octet-stream'
-    
+
     return file_name, file_size, mime_type
